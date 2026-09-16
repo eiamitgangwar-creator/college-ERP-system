@@ -8,20 +8,24 @@ import mongoose from 'mongoose';
 
 export async function markAttendance(req: Request, res: Response): Promise<any> {
     try {
-        const { studentId, status, date, department, course, semester, subject } = req.body;
+        const {  status, date, department, course, semester, subject } = req.body;
         
-        // 
-        let loggedInUserId = (req as any).user?.id || (req as any).user?._id || (req as any).user?.studentId; 
+        const studentId = req.body.studentId as string;  
+           let loggedInUserId = ((req as any).user?.id || (req as any).user?._id) as string; 
 
         if (!studentId) {
             return res.status(400).json({ message: 'Student ID parameter is missing' });
         }
 
         // change student id to mongodb ObjectId  
-        let finalStudentId = studentId;
+       let finalStudentId: any = studentId;
         if (!mongoose.Types.ObjectId.isValid(studentId)) {
+        
             const actualStudent = await Student.findOne({ 
-                $or: [{ rollNumber: studentId }, { email: studentId.toLowerCase() }] 
+                $or: [
+                    { rollNumber: studentId }, 
+                    { email: String(studentId).toLowerCase() }
+                ] 
             });
             if (!actualStudent) {
                 return res.status(404).json({ message: `Student profile not found for identifier: ${studentId}` });
@@ -31,12 +35,8 @@ export async function markAttendance(req: Request, res: Response): Promise<any> 
             finalStudentId = new mongoose.Types.ObjectId(studentId);
         }
 
-
-        if (loggedInUserId && mongoose.Types.ObjectId.isValid(loggedInUserId)) {
-            loggedInUserId = new mongoose.Types.ObjectId(loggedInUserId);
-        } else {
-            console.log("Warning: loggedInUserId was missing/invalid in token. Using self-resolving fallback.");
-            loggedInUserId = finalStudentId; 
+        if (!loggedInUserId || !mongoose.Types.ObjectId.isValid(loggedInUserId)) {
+            loggedInUserId = new mongoose.Types.ObjectId().toString(); 
         }
 
         const targetDate = new Date(date);
@@ -83,7 +83,7 @@ export async function markAttendance(req: Request, res: Response): Promise<any> 
 // GET STUDENT ATTENDANCE (Inline Export)
 export async function getStudentAttendance(req: Request, res: Response): Promise<any> {
     try {
-        const { studentId } = req.params;
+        const  studentId  = req.params.studentId as string;
 
         let finalStudentId = studentId;
         if (!mongoose.Types.ObjectId.isValid(studentId)) {
